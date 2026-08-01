@@ -4,14 +4,16 @@ Sistema web (Next.js + Supabase) para a Loja Revoada (streetwear, Maceió-AL): P
 estoque por grade, financeiro/caixa e dashboard, com dois perfis de acesso
 (**admin** e **vendedor**).
 
-Este README cobre o que já existe (Fases 1 a 4). Cada fase nova do projeto atualiza
+Este README cobre o que já existe (Fases 1 a 5). Cada fase nova do projeto atualiza
 esta seção.
 
 ## Stack
 
 - Next.js 16 (App Router, TypeScript) + Tailwind CSS v4 + shadcn/ui
-- Supabase (Postgres, Auth, Storage) via `@supabase/ssr`
+- Supabase (Postgres, Auth, Storage, Realtime) via `@supabase/ssr`
 - Zod + React Hook Form
+- `pdf-lib` para exportação de relatórios em PDF (sem dependências nativas,
+  roda bem em ambiente serverless)
 
 ## Rodando localmente
 
@@ -92,13 +94,15 @@ a senha depois pelo fluxo de "Esqueci minha senha").
 app/
   (admin)/        rotas restritas a admin: dashboard, vendedores, estoque, financeiro
   pdv/            rota do PDV (admin e vendedor)
+  api/relatorios/ Route Handler de exportação (CSV/PDF)
   login, esqueci-senha, redefinir-senha, auth/confirm  — autenticação
 lib/supabase/     clients Supabase (browser, server, middleware, admin/service_role)
 lib/validations/  schemas Zod
 lib/pdv/          store do carrinho (Zustand)
+lib/dashboard/    cálculo de período (compartilhado entre Server Actions e Route Handler)
 lib/auth/         guardas de servidor (assertIsAdmin, obterUsuarioAtual)
-actions/          Server Actions por domínio (auth, vendedores, estoque, caixa, vendas, despesas)
-components/       ui (shadcn), layout, auth, admin, pdv, financeiro
+actions/          Server Actions por domínio (auth, vendedores, estoque, caixa, vendas, despesas, dashboard)
+components/       ui (shadcn), layout, auth, admin, pdv, financeiro, dashboard
 supabase/
   migrations/     schema + RLS + funções transacionais (fonte de verdade do banco)
   seed.sql        dados de exemplo para dev local
@@ -136,7 +140,7 @@ types/supabase.ts tipos gerados do schema
 - ✅ Fase 3 — Gestão de estoque por grade (produtos, variações, entradas,
   alertas de mínimo, upload de foto, categorias/fornecedores).
 - ✅ Fase 4 — PDV e financeiro/caixa.
-- ⏳ Fase 5 — Dashboard e relatórios.
+- ✅ Fase 5 — Dashboard e relatórios.
 - ⏳ Fase 6 — Testes end-to-end e polimento de UI/UX.
 
 ## PDV e caixa (Fase 4)
@@ -169,6 +173,27 @@ types/supabase.ts tipos gerados do schema
 Despesa lançada com "pago com dinheiro do caixa" gera também a movimentação de
 saída no caixa aberto do admin, na mesma transação. Sem a marcação, entra apenas
 no resumo financeiro (caso de pagamento por transferência/boleto).
+
+## Dashboard e relatórios (Fase 5)
+
+- **Métricas em tempo real** (cards "Hoje" e "Mês corrente": faturamento, ticket
+  médio, peças vendidas) via Supabase Realtime — um canal no cliente
+  (`components/dashboard/realtime-watcher.tsx`) escuta mudanças em `vendas`,
+  `caixas`, `movimentacoes_caixa` e `despesas` e chama `router.refresh()`. Como
+  os dados vêm de Server Components, esse é o único jeito de "atualizar
+  estado" sem duplicar a fonte de verdade no cliente. As tabelas precisam estar
+  na publicação `supabase_realtime` (`..._realtime.sql`) — RLS continua valendo,
+  cada papel só recebe os eventos das linhas que já enxergaria via `select`.
+- **Ranking de produtos e desempenho por vendedor** são filtráveis por período
+  (`inicio`/`fim` na URL, formulário de data); os cards do topo ficam fixos em
+  "hoje"/"mês corrente" por design, independente do filtro.
+- **Exportação em CSV e PDF** (`app/api/relatorios/vendas/route.ts`) do período
+  selecionado: resumo, top produtos, desempenho por vendedor e a lista de
+  vendas. CSV usa `;` como separador e vírgula decimal (padrão do Excel em
+  pt-BR); PDF é montado com `pdf-lib` (texto simples, sem headless browser —
+  roda no plano gratuito da Vercel). Recalcula `assertIsAdmin()` dentro do
+  próprio Route Handler: `proxy.ts` não marca `/api/*` como rota de admin, só
+  as páginas.
 
 ## Recomendações pendentes (não bloqueiam o uso)
 

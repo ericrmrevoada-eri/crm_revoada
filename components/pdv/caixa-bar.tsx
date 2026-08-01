@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/sheet";
 import { MovimentacaoDialog } from "@/components/pdv/movimentacao-dialog";
 import { FecharCaixaDialog } from "@/components/pdv/fechar-caixa-dialog";
+import type { ResumoFechado } from "@/components/pdv/fechamento-resumo-dialog";
 
 const ROTULO_TIPO: Record<MovimentacaoCaixa["tipo"], string> = {
   venda: "Venda",
@@ -28,10 +29,12 @@ export function CaixaBar({
   caixa,
   resumo,
   movimentacoes,
+  onFechado,
 }: {
   caixa: Caixa;
   resumo: ResumoCaixa | null;
   movimentacoes: MovimentacaoCaixa[];
+  onFechado: (resultado: ResumoFechado) => void;
 }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card p-3">
@@ -109,7 +112,7 @@ export function CaixaBar({
         </Sheet>
 
         <MovimentacaoDialog caixaId={caixa.id} />
-        <FecharCaixaDialog caixaId={caixa.id} resumo={resumo} />
+        <FecharCaixaDialog caixaId={caixa.id} resumo={resumo} onFechado={onFechado} />
       </div>
     </div>
   );

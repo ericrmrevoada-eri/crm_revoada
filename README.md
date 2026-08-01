@@ -122,7 +122,15 @@ types/supabase.ts tipos gerados do schema
 
 - ✅ Fase 1 — Modelo de dados, migrations e RLS.
 - ✅ Fase 2 — Autenticação, RBAC, estrutura base e tema visual.
-- ⏳ Fase 3 — Gestão de estoque por grade.
+- ✅ Fase 3 — Gestão de estoque por grade (produtos, variações, entradas,
+  alertas de mínimo, upload de foto, categorias/fornecedores).
 - ⏳ Fase 4 — PDV e financeiro/caixa.
 - ⏳ Fase 5 — Dashboard e relatórios.
 - ⏳ Fase 6 — Testes end-to-end e polimento de UI/UX.
+
+### Recomendação pendente (não bloqueia o uso)
+
+O advisor de segurança do Supabase aponta que a proteção contra senha vazada
+(checagem via HaveIBeenPwned) está desligada no projeto. É uma configuração de
+conta/projeto, não de código — ative em **Authentication > Policies > Password
+Security** no dashboard do Supabase quando puder.

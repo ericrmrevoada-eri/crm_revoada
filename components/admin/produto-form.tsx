@@ -47,15 +47,8 @@ export function ProdutoForm({
   const [serverError, setServerError] = useState<string | null>(null);
   const editando = !!produto;
 
-  const {
-    register,
-    handleSubmit,
-    control,
-    reset,
-    formState: { errors, isSubmitting },
-  } = useForm<ProdutoInput>({
-    resolver: zodResolver(produtoSchema),
-    defaultValues: produto
+  function valoresIniciais(): ProdutoInput {
+    return produto
       ? {
           nome: produto.nome,
           descricao: produto.descricao ?? "",
@@ -66,7 +59,25 @@ export function ProdutoForm({
           precoVenda: String(produto.preco_venda),
           ativo: produto.ativo,
         }
-      : { ativo: true, categoriaId: SEM_VALOR, fornecedorId: SEM_VALOR },
+      : {
+          nome: "",
+          precoCusto: "",
+          precoVenda: "",
+          ativo: true,
+          categoriaId: SEM_VALOR,
+          fornecedorId: SEM_VALOR,
+        };
+  }
+
+  const {
+    register,
+    handleSubmit,
+    control,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm<ProdutoInput>({
+    resolver: zodResolver(produtoSchema),
+    defaultValues: valoresIniciais(),
   });
 
   async function onSubmit(values: ProdutoInput) {
@@ -95,10 +106,10 @@ export function ProdutoForm({
       open={open}
       onOpenChange={(next) => {
         setOpen(next);
-        if (!next) {
-          reset();
-          setFoto(null);
-          setServerError(null);
+        setFoto(null);
+        setServerError(null);
+        if (next) {
+          reset(valoresIniciais());
         }
       }}
     >

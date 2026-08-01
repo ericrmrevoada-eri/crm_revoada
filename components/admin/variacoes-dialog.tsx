@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
@@ -55,11 +55,6 @@ export function VariacoesDialog({
     setLoading(false);
   }
 
-  useEffect(() => {
-    if (open) carregar();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
-
   const {
     register,
     handleSubmit,
@@ -91,7 +86,13 @@ export function VariacoesDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (next) carregar();
+      }}
+    >
       <DialogTrigger asChild>
         <Button size="sm" variant="outline">
           Variações

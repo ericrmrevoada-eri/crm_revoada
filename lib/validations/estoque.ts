@@ -1,4 +1,14 @@
 import { z } from "zod";
+import {
+  numeroDecimalTexto,
+  numeroInteiroTexto,
+  paraNumeroDecimal,
+  paraNumeroInteiro,
+} from "./comum";
+
+// Re-exportados porque as Server Actions de estoque já importam os conversores
+// daqui; a definição mora em ./comum, compartilhada com o financeiro.
+export { paraNumeroDecimal, paraNumeroInteiro };
 
 export const categoriaSchema = z.object({
   nome: z.string().min(2, "Informe o nome da categoria"),
@@ -12,28 +22,6 @@ export const fornecedorSchema = z.object({
   observacoes: z.string().optional(),
 });
 export type FornecedorInput = z.infer<typeof fornecedorSchema>;
-
-// Mantidos como string (sem .transform) de propósito: o formulário (React Hook
-// Form) trabalha só com strings vindas do <input>; a conversão pra number
-// acontece na Server Action, logo antes de gravar no banco. Evita o
-// descompasso de tipos entre o schema de validação e o schema do formulário.
-const numeroDecimalTexto = z
-  .string()
-  .min(1, "Informe um valor")
-  .refine((v) => !Number.isNaN(Number(v.replace(",", "."))), "Valor inválido");
-
-export function paraNumeroDecimal(valor: string) {
-  return Number(valor.replace(",", "."));
-}
-
-const numeroInteiroTexto = z
-  .string()
-  .min(1, "Informe um valor")
-  .refine((v) => Number.isInteger(Number(v)) && Number(v) >= 0, "Valor inválido");
-
-export function paraNumeroInteiro(valor: string) {
-  return Number(valor);
-}
 
 export const produtoSchema = z.object({
   nome: z.string().min(2, "Informe o nome do produto"),

@@ -299,28 +299,41 @@ export type Database = {
           caixa_id: string
           criado_em: string
           descricao: string | null
+          despesa_id: string | null
+          forma_pagamento: Database["public"]["Enums"]["forma_pagamento"] | null
           id: string
           tipo: Database["public"]["Enums"]["tipo_movimentacao_caixa"]
           updated_at: string
           valor: number
+          venda_id: string | null
         }
         Insert: {
           caixa_id: string
           criado_em?: string
           descricao?: string | null
+          despesa_id?: string | null
+          forma_pagamento?:
+            | Database["public"]["Enums"]["forma_pagamento"]
+            | null
           id?: string
           tipo: Database["public"]["Enums"]["tipo_movimentacao_caixa"]
           updated_at?: string
           valor: number
+          venda_id?: string | null
         }
         Update: {
           caixa_id?: string
           criado_em?: string
           descricao?: string | null
+          despesa_id?: string | null
+          forma_pagamento?:
+            | Database["public"]["Enums"]["forma_pagamento"]
+            | null
           id?: string
           tipo?: Database["public"]["Enums"]["tipo_movimentacao_caixa"]
           updated_at?: string
           valor?: number
+          venda_id?: string | null
         }
         Relationships: [
           {
@@ -328,6 +341,20 @@ export type Database = {
             columns: ["caixa_id"]
             isOneToOne: false
             referencedRelation: "caixas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimentacoes_caixa_despesa_id_fkey"
+            columns: ["despesa_id"]
+            isOneToOne: false
+            referencedRelation: "despesas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimentacoes_caixa_venda_id_fkey"
+            columns: ["venda_id"]
+            isOneToOne: false
+            referencedRelation: "vendas"
             referencedColumns: ["id"]
           },
         ]
@@ -500,6 +527,7 @@ export type Database = {
       }
       vendas: {
         Row: {
+          caixa_id: string | null
           criado_em: string
           desconto: number
           forma_pagamento: Database["public"]["Enums"]["forma_pagamento"]
@@ -510,6 +538,7 @@ export type Database = {
           vendedor_id: string
         }
         Insert: {
+          caixa_id?: string | null
           criado_em?: string
           desconto?: number
           forma_pagamento: Database["public"]["Enums"]["forma_pagamento"]
@@ -520,6 +549,7 @@ export type Database = {
           vendedor_id: string
         }
         Update: {
+          caixa_id?: string | null
           criado_em?: string
           desconto?: number
           forma_pagamento?: Database["public"]["Enums"]["forma_pagamento"]
@@ -530,6 +560,13 @@ export type Database = {
           vendedor_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "vendas_caixa_id_fkey"
+            columns: ["caixa_id"]
+            isOneToOne: false
+            referencedRelation: "caixas"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "vendas_vendedor_id_fkey"
             columns: ["vendedor_id"]
@@ -544,7 +581,26 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      cancelar_venda: { Args: { p_venda_id: string }; Returns: undefined }
+      fechar_caixa: {
+        Args: { p_caixa_id: string; p_valor_informado: number }
+        Returns: Json
+      }
+      registrar_despesa: {
+        Args: {
+          p_caixa_id?: string
+          p_categoria: Database["public"]["Enums"]["categoria_despesa"]
+          p_data?: string
+          p_descricao?: string
+          p_valor: number
+        }
+        Returns: string
+      }
+      registrar_venda: {
+        Args: { p_desconto?: number; p_itens: Json; p_pagamentos: Json }
+        Returns: string
+      }
+      resumo_caixa: { Args: { p_caixa_id: string }; Returns: Json }
     }
     Enums: {
       categoria_despesa: "aluguel" | "frete" | "luz" | "outros"

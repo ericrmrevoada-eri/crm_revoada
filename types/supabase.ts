@@ -489,6 +489,7 @@ export type Database = {
           cor: string
           created_at: string
           estoque_minimo: number
+          foto_url: string | null
           id: string
           produto_id: string
           quantidade_estoque: number
@@ -499,6 +500,7 @@ export type Database = {
           cor: string
           created_at?: string
           estoque_minimo?: number
+          foto_url?: string | null
           id?: string
           produto_id: string
           quantidade_estoque?: number
@@ -509,6 +511,7 @@ export type Database = {
           cor?: string
           created_at?: string
           estoque_minimo?: number
+          foto_url?: string | null
           id?: string
           produto_id?: string
           quantidade_estoque?: number

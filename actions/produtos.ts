@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { assertIsAdmin } from "@/lib/auth/assert-admin";
+import { uploadFotoProduto } from "@/lib/supabase/storage";
 import { produtoSchema, paraNumeroDecimal, type ProdutoInput } from "@/lib/validations/estoque";
 
 export type Produto = {
@@ -58,18 +59,6 @@ export async function listarProdutos(): Promise<Produto[]> {
   });
 }
 
-async function uploadFoto(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  foto: File,
-): Promise<{ url?: string; error?: string }> {
-  const extensao = foto.name.split(".").pop() || "jpg";
-  const path = `${crypto.randomUUID()}.${extensao}`;
-  const { error } = await supabase.storage.from("produtos").upload(path, foto);
-  if (error) return { error: "Não foi possível enviar a foto do produto" };
-  const { data } = supabase.storage.from("produtos").getPublicUrl(path);
-  return { url: data.publicUrl };
-}
-
 export async function criarProduto(
   input: ProdutoInput,
   foto?: File | null,
@@ -89,7 +78,7 @@ export async function criarProduto(
 
   let fotoUrl: string | null = null;
   if (foto && foto.size > 0) {
-    const resultado = await uploadFoto(supabase, foto);
+    const resultado = await uploadFotoProduto(supabase, foto);
     if (resultado.error) return { error: resultado.error };
     fotoUrl = resultado.url ?? null;
   }
@@ -138,7 +127,7 @@ export async function atualizarProduto(
 
   let fotoUrl: string | undefined;
   if (foto && foto.size > 0) {
-    const resultado = await uploadFoto(supabase, foto);
+    const resultado = await uploadFotoProduto(supabase, foto);
     if (resultado.error) return { error: resultado.error };
     fotoUrl = resultado.url;
   }

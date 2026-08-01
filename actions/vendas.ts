@@ -42,7 +42,7 @@ export async function listarCatalogoPdv(): Promise<ItemCatalogo[]> {
     supabase
       .from("variacoes_produto")
       .select(
-        "id, tamanho, cor, quantidade_estoque, produtos!inner(id, nome, marca, foto_url, preco_venda, ativo, categoria_id)",
+        "id, tamanho, cor, quantidade_estoque, foto_url, produtos!inner(id, nome, marca, foto_url, preco_venda, ativo, categoria_id)",
       )
       .eq("produtos.ativo", true)
       .order("nome", { referencedTable: "produtos" })
@@ -60,7 +60,9 @@ export async function listarCatalogoPdv(): Promise<ItemCatalogo[]> {
     categoria_nome: v.produtos.categoria_id
       ? (nomeCategoria.get(v.produtos.categoria_id) ?? null)
       : null,
-    foto_url: v.produtos.foto_url,
+    // A foto da variação (ex: cor específica) tem prioridade; sem ela, cai na
+    // foto de capa do produto — sem isso, preto e branco mostravam a mesma imagem.
+    foto_url: v.foto_url ?? v.produtos.foto_url,
     tamanho: v.tamanho,
     cor: v.cor,
     preco_venda: v.produtos.preco_venda,

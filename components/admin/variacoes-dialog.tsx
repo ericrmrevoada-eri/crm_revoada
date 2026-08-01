@@ -1,14 +1,16 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import Image from "next/image";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { Plus, Trash2 } from "lucide-react";
+import { ImageOff, ImageUp, Plus, Trash2 } from "lucide-react";
 import {
   listarVariacoes,
   criarVariacao,
   excluirVariacao,
+  atualizarFotoVariacao,
   type Variacao,
 } from "@/actions/variacoes";
 import type { Fornecedor } from "@/actions/fornecedores";
@@ -40,6 +42,52 @@ import { EntradaEstoqueForm } from "@/components/admin/entrada-estoque-form";
 // depois que a lista de produtos é recarregada do servidor.
 type ProdutoResumo = { id: string; nome: string };
 
+// Botão que troca só a foto de uma variação já existente — sem diálogo
+// próprio, o clique já abre o seletor de arquivo do sistema e envia direto.
+function TrocarFotoButton({ variacaoId, onSuccess }: { variacaoId: string; onSuccess: () => void }) {
+  const [isPending, startTransition] = useTransition();
+  const inputId = `trocar-foto-${variacaoId}`;
+
+  function aoSelecionar(e: React.ChangeEvent<HTMLInputElement>) {
+    const foto = e.target.files?.[0];
+    e.target.value = "";
+    if (!foto) return;
+    startTransition(async () => {
+      const result = await atualizarFotoVariacao(variacaoId, foto);
+      if (result?.error) {
+        toast.error(result.error);
+      } else {
+        toast.success("Foto atualizada");
+        onSuccess();
+      }
+    });
+  }
+
+  return (
+    <>
+      <input
+        id={inputId}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={aoSelecionar}
+        disabled={isPending}
+      />
+      <Button
+        size="icon-sm"
+        variant="outline"
+        disabled={isPending}
+        title="Trocar foto desta variação"
+        asChild
+      >
+        <label htmlFor={inputId} className="cursor-pointer">
+          <ImageUp className="h-4 w-4" />
+        </label>
+      </Button>
+    </>
+  );
+}
+
 export function VariacoesDialog({
   produto,
   fornecedores,
@@ -60,6 +108,7 @@ export function VariacoesDialog({
   const [open, setOpen] = useState(abrirAoMontar);
   const [variacoes, setVariacoes] = useState<Variacao[]>([]);
   const [loading, setLoading] = useState(abrirAoMontar);
+  const [novaFoto, setNovaFoto] = useState<File | null>(null);
   const [isPending, startTransition] = useTransition();
 
   async function carregar() {
@@ -90,13 +139,14 @@ export function VariacoesDialog({
   } = useForm<VariacaoInput>({ resolver: zodResolver(variacaoSchema) });
 
   async function onSubmitNovaVariacao(values: VariacaoInput) {
-    const result = await criarVariacao(produto.id, values);
+    const result = await criarVariacao(produto.id, values, novaFoto);
     if (result?.error) {
       toast.error(result.error);
       return;
     }
     toast.success("Variação criada");
     reset();
+    setNovaFoto(null);
     carregar();
   }
 
@@ -132,7 +182,9 @@ export function VariacoesDialog({
         <DialogHeader>
           <DialogTitle>Variações — {produto.nome}</DialogTitle>
           <DialogDescription>
-            Tamanho × cor, quantidade em estoque e estoque mínimo.
+            Tamanho × cor, quantidade em estoque, estoque mínimo e foto — cada
+            variação pode ter uma foto própria; sem foto, o PDV usa a do
+            produto.
           </DialogDescription>
         </DialogHeader>
 
@@ -145,6 +197,7 @@ export function VariacoesDialog({
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-12"></TableHead>
                   <TableHead>Tamanho</TableHead>
                   <TableHead>Cor</TableHead>
                   <TableHead className="text-right">Estoque</TableHead>
@@ -155,6 +208,21 @@ export function VariacoesDialog({
               <TableBody>
                 {variacoes.map((v) => (
                   <TableRow key={v.id}>
+                    <TableCell>
+                      {v.foto_url ? (
+                        <Image
+                          src={v.foto_url}
+                          alt={`${produto.nome} ${v.tamanho}/${v.cor}`}
+                          width={32}
+                          height={32}
+                          className="h-8 w-8 rounded-md object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-8 w-8 items-center justify-center rounded-md bg-muted">
+                          <ImageOff className="h-3.5 w-3.5 text-muted-foreground" />
+                        </div>
+                      )}
+                    </TableCell>
                     <TableCell>{v.tamanho}</TableCell>
                     <TableCell>{v.cor}</TableCell>
                     <TableCell className="text-right tabular-nums-tight">
@@ -170,6 +238,7 @@ export function VariacoesDialog({
                     </TableCell>
                     <TableCell>
                       <div className="flex justify-end gap-2">
+                        <TrocarFotoButton variacaoId={v.id} onSuccess={carregar} />
                         <EntradaEstoqueForm
                           variacao={v}
                           produtoNome={produto.nome}
@@ -195,7 +264,7 @@ export function VariacoesDialog({
 
         <form
           onSubmit={handleSubmit(onSubmitNovaVariacao)}
-          className="grid grid-cols-2 gap-3 rounded-lg border border-dashed border-border p-3 sm:grid-cols-5"
+          className="grid grid-cols-2 gap-3 rounded-lg border border-dashed border-border p-3 sm:grid-cols-6"
           noValidate
         >
           <div className="space-y-1">
@@ -222,6 +291,15 @@ export function VariacoesDialog({
               inputMode="numeric"
               placeholder="0"
               {...register("estoqueMinimo")}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="novaFoto">Foto</Label>
+            <Input
+              id="novaFoto"
+              type="file"
+              accept="image/*"
+              onChange={(e) => setNovaFoto(e.target.files?.[0] ?? null)}
             />
           </div>
           <div className="flex items-end">

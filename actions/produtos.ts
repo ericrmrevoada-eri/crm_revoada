@@ -73,7 +73,7 @@ async function uploadFoto(
 export async function criarProduto(
   input: ProdutoInput,
   foto?: File | null,
-): Promise<{ error?: string }> {
+): Promise<{ error?: string; id?: string }> {
   const parsed = produtoSchema.safeParse(input);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos" };
@@ -94,24 +94,28 @@ export async function criarProduto(
     fotoUrl = resultado.url ?? null;
   }
 
-  const { error } = await supabase.from("produtos").insert({
-    nome: parsed.data.nome,
-    descricao: parsed.data.descricao || null,
-    categoria_id: parsed.data.categoriaId || null,
-    fornecedor_id: parsed.data.fornecedorId || null,
-    marca: parsed.data.marca || null,
-    preco_custo: paraNumeroDecimal(parsed.data.precoCusto),
-    preco_venda: paraNumeroDecimal(parsed.data.precoVenda),
-    ativo: parsed.data.ativo,
-    foto_url: fotoUrl,
-  });
+  const { data, error } = await supabase
+    .from("produtos")
+    .insert({
+      nome: parsed.data.nome,
+      descricao: parsed.data.descricao || null,
+      categoria_id: parsed.data.categoriaId || null,
+      fornecedor_id: parsed.data.fornecedorId || null,
+      marca: parsed.data.marca || null,
+      preco_custo: paraNumeroDecimal(parsed.data.precoCusto),
+      preco_venda: paraNumeroDecimal(parsed.data.precoVenda),
+      ativo: parsed.data.ativo,
+      foto_url: fotoUrl,
+    })
+    .select("id")
+    .single();
 
-  if (error) {
+  if (error || !data) {
     return { error: "Não foi possível criar o produto" };
   }
 
   revalidatePath("/estoque");
-  return {};
+  return { id: data.id };
 }
 
 export async function atualizarProduto(

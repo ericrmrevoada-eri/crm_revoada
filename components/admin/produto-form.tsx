@@ -8,6 +8,7 @@ import { Plus, Pencil } from "lucide-react";
 import { criarProduto, atualizarProduto, type Produto } from "@/actions/produtos";
 import type { Categoria } from "@/actions/categorias";
 import type { Fornecedor } from "@/actions/fornecedores";
+import { VariacoesDialog } from "@/components/admin/variacoes-dialog";
 import { produtoSchema, type ProdutoInput } from "@/lib/validations/estoque";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,6 +46,13 @@ export function ProdutoForm({
   const [open, setOpen] = useState(false);
   const [foto, setFoto] = useState<File | null>(null);
   const [serverError, setServerError] = useState<string | null>(null);
+  // Depois de cadastrar um produto novo (nunca ao editar), abre direto o
+  // diálogo de variações — sem isso o admin some numa tabela grande procurando
+  // como adicionar a primeira variação com quantidade.
+  const [produtoRecemCriado, setProdutoRecemCriado] = useState<{
+    id: string;
+    nome: string;
+  } | null>(null);
   const editando = !!produto;
 
   function valoresIniciais(): ProdutoInput {
@@ -87,21 +95,33 @@ export function ProdutoForm({
       categoriaId: values.categoriaId === SEM_VALOR ? undefined : values.categoriaId,
       fornecedorId: values.fornecedorId === SEM_VALOR ? undefined : values.fornecedorId,
     };
-    const result = editando
-      ? await atualizarProduto(produto!.id, payload, foto)
-      : await criarProduto(payload, foto);
-
-    if (result?.error) {
-      setServerError(result.error);
-      return;
+    let idCriado: string | undefined;
+    if (editando) {
+      const result = await atualizarProduto(produto!.id, payload, foto);
+      if (result?.error) {
+        setServerError(result.error);
+        return;
+      }
+    } else {
+      const result = await criarProduto(payload, foto);
+      if (result?.error) {
+        setServerError(result.error);
+        return;
+      }
+      idCriado = result.id;
     }
+
     toast.success(editando ? "Produto atualizado" : "Produto cadastrado");
     reset();
     setFoto(null);
     setOpen(false);
+    if (idCriado) {
+      setProdutoRecemCriado({ id: idCriado, nome: values.nome });
+    }
   }
 
   return (
+    <>
     <Dialog
       open={open}
       onOpenChange={(next) => {
@@ -241,5 +261,16 @@ export function ProdutoForm({
         </form>
       </DialogContent>
     </Dialog>
+
+    {produtoRecemCriado && (
+      <VariacoesDialog
+        produto={produtoRecemCriado}
+        fornecedores={fornecedores}
+        abrirAoMontar
+        semGatilho
+        aoFechar={() => setProdutoRecemCriado(null)}
+      />
+    )}
+    </>
   );
 }

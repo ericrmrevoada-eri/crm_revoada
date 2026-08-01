@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { contarVariacoesAbaixoMinimo } from "@/actions/variacoes";
 import { UserMenu } from "@/components/layout/user-menu";
+import { AdminShell } from "@/components/layout/admin-shell";
 
 export default async function PdvLayout({
   children,
@@ -19,6 +21,18 @@ export default async function PdvLayout({
     .select("nome_completo, papel")
     .eq("id", user.id)
     .single();
+
+  // Admin também opera o PDV (Fase 4), mas continua precisando navegar para o
+  // resto do painel — sem a barra lateral aqui ele ficava preso na tela do
+  // PDV, sem como voltar para Dashboard/Estoque/Financeiro.
+  if (profile?.papel === "admin") {
+    const estoqueBaixoCount = await contarVariacoesAbaixoMinimo();
+    return (
+      <AdminShell nome={profile.nome_completo} papel="admin" estoqueBaixoCount={estoqueBaixoCount}>
+        {children}
+      </AdminShell>
+    );
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-background">

@@ -52,21 +52,42 @@ export async function criarVariacao(
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.from("variacoes_produto").insert({
-    produto_id: produtoId,
-    tamanho: parsed.data.tamanho,
-    cor: parsed.data.cor,
-    quantidade_estoque: paraNumeroInteiro(parsed.data.quantidadeEstoque),
-    estoque_minimo: paraNumeroInteiro(parsed.data.estoqueMinimo),
-  });
+  const quantidadeInicial = paraNumeroInteiro(parsed.data.quantidadeEstoque);
 
-  if (error) {
-    const duplicada = error.message.toLowerCase().includes("duplicate");
+  // A variação nasce com estoque 0; se houver quantidade inicial, ela entra
+  // como uma entrada de estoque de verdade (não escrita direto na coluna),
+  // para o trigger aplicar_entrada_estoque somar e o histórico de entradas
+  // (aba "Entradas de estoque") não ficar com um número sem origem registrada.
+  const { data: variacao, error } = await supabase
+    .from("variacoes_produto")
+    .insert({
+      produto_id: produtoId,
+      tamanho: parsed.data.tamanho,
+      cor: parsed.data.cor,
+      quantidade_estoque: 0,
+      estoque_minimo: paraNumeroInteiro(parsed.data.estoqueMinimo),
+    })
+    .select("id")
+    .single();
+
+  if (error || !variacao) {
+    const duplicada = (error?.message ?? "").toLowerCase().includes("duplicate");
     return {
       error: duplicada
         ? "Já existe essa variação (tamanho/cor) para este produto"
         : "Não foi possível criar a variação",
     };
+  }
+
+  if (quantidadeInicial > 0) {
+    const { error: erroEntrada } = await supabase.from("entradas_estoque").insert({
+      variacao_produto_id: variacao.id,
+      quantidade: quantidadeInicial,
+      lote: "Estoque inicial",
+    });
+    if (erroEntrada) {
+      return { error: "Variação criada, mas não foi possível registrar o estoque inicial" };
+    }
   }
 
   revalidatePath("/estoque");

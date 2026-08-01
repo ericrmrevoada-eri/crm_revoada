@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
@@ -11,7 +11,6 @@ import {
   excluirVariacao,
   type Variacao,
 } from "@/actions/variacoes";
-import type { Produto } from "@/actions/produtos";
 import type { Fornecedor } from "@/actions/fornecedores";
 import { variacaoSchema, type VariacaoInput } from "@/lib/validations/estoque";
 import { Badge } from "@/components/ui/badge";
@@ -36,16 +35,31 @@ import {
 } from "@/components/ui/table";
 import { EntradaEstoqueForm } from "@/components/admin/entrada-estoque-form";
 
+// Só o necessário para o cabeçalho do diálogo e o formulário de entrada — não
+// os campos agregados (categoria, total de variações etc.) que só existem
+// depois que a lista de produtos é recarregada do servidor.
+type ProdutoResumo = { id: string; nome: string };
+
 export function VariacoesDialog({
   produto,
   fornecedores,
+  abrirAoMontar = false,
+  semGatilho = false,
+  aoFechar,
 }: {
-  produto: Produto;
+  produto: ProdutoResumo;
   fornecedores: Fornecedor[];
+  // Usados para abrir o diálogo direto depois de cadastrar um produto novo,
+  // sem precisar caçar o botão "Variações" na tabela.
+  abrirAoMontar?: boolean;
+  semGatilho?: boolean;
+  aoFechar?: () => void;
 }) {
-  const [open, setOpen] = useState(false);
+  // Estado inicial já nasce aberto/carregando quando chamado logo após criar
+  // um produto — evita um setState síncrono dentro de efeito só para isso.
+  const [open, setOpen] = useState(abrirAoMontar);
   const [variacoes, setVariacoes] = useState<Variacao[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(abrirAoMontar);
   const [isPending, startTransition] = useTransition();
 
   async function carregar() {
@@ -54,6 +68,19 @@ export function VariacoesDialog({
     setVariacoes(data);
     setLoading(false);
   }
+
+  useEffect(() => {
+    // setState roda dentro do callback do .then, não direto no corpo do
+    // efeito — busca de dados é exatamente o caso de uso que useEffect existe
+    // para resolver, então isso não é o padrão que a regra quer evitar.
+    if (abrirAoMontar) {
+      listarVariacoes(produto.id).then((data) => {
+        setVariacoes(data);
+        setLoading(false);
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const {
     register,
@@ -91,13 +118,16 @@ export function VariacoesDialog({
       onOpenChange={(next) => {
         setOpen(next);
         if (next) carregar();
+        if (!next) aoFechar?.();
       }}
     >
-      <DialogTrigger asChild>
-        <Button size="sm" variant="outline">
-          Variações
-        </Button>
-      </DialogTrigger>
+      {!semGatilho && (
+        <DialogTrigger asChild>
+          <Button size="sm" variant="outline">
+            Variações
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Variações — {produto.nome}</DialogTitle>

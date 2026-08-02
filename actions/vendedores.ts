@@ -17,13 +17,14 @@ export type Vendedor = {
 export async function listarVendedores(): Promise<Vendedor[]> {
   await assertIsAdmin();
   const supabase = await createClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("profiles")
     .select("id, nome_completo, telefone, ativo, created_at")
     .eq("papel", "vendedor")
     .order("created_at", { ascending: false });
+  if (error) throw new Error("Não foi possível carregar os vendedores.");
 
-  return data ?? [];
+  return data;
 }
 
 export async function criarVendedor(

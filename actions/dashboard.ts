@@ -70,7 +70,7 @@ export async function listarTopProdutos(periodo: Periodo, limite = 10): Promise<
   await assertIsAdmin();
   const supabase = await createClient();
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("itens_venda")
     .select(
       "quantidade, subtotal, variacoes_produto!inner(produto_id, produtos!inner(nome, marca)), vendas!inner(status, criado_em)",
@@ -78,9 +78,10 @@ export async function listarTopProdutos(periodo: Periodo, limite = 10): Promise<
     .eq("vendas.status", "concluida")
     .gte("vendas.criado_em", inicioDoPeriodo(periodo))
     .lte("vendas.criado_em", fimDoPeriodo(periodo));
+  if (error) throw new Error("Não foi possível carregar os produtos mais vendidos.");
 
   const porProduto = new Map<string, TopProduto>();
-  for (const item of data ?? []) {
+  for (const item of data) {
     const produto = item.variacoes_produto.produtos;
     const produtoId = item.variacoes_produto.produto_id;
     const atual = porProduto.get(produtoId) ?? {
@@ -104,20 +105,24 @@ export async function listarDesempenhoVendedores(periodo: Periodo): Promise<Dese
   await assertIsAdmin();
   const supabase = await createClient();
 
-  const [{ data: vendas }, { data: perfis }] = await Promise.all([
-    supabase
-      .from("vendas")
-      .select("vendedor_id, valor_total, itens_venda(quantidade)")
-      .eq("status", "concluida")
-      .gte("criado_em", inicioDoPeriodo(periodo))
-      .lte("criado_em", fimDoPeriodo(periodo)),
-    supabase.from("profiles").select("id, nome_completo"),
-  ]);
+  const [{ data: vendas, error: errorVendas }, { data: perfis, error: errorPerfis }] =
+    await Promise.all([
+      supabase
+        .from("vendas")
+        .select("vendedor_id, valor_total, itens_venda(quantidade)")
+        .eq("status", "concluida")
+        .gte("criado_em", inicioDoPeriodo(periodo))
+        .lte("criado_em", fimDoPeriodo(periodo)),
+      supabase.from("profiles").select("id, nome_completo"),
+    ]);
+  if (errorVendas || errorPerfis) {
+    throw new Error("Não foi possível carregar o desempenho dos vendedores.");
+  }
 
-  const nomes = new Map((perfis ?? []).map((p) => [p.id, p.nome_completo]));
+  const nomes = new Map(perfis.map((p) => [p.id, p.nome_completo]));
   const porVendedor = new Map<string, DesempenhoVendedor>();
 
-  for (const venda of vendas ?? []) {
+  for (const venda of vendas) {
     const pecas = (venda.itens_venda ?? []).reduce((acc, i) => acc + i.quantidade, 0);
     const atual = porVendedor.get(venda.vendedor_id) ?? {
       vendedorId: venda.vendedor_id,
@@ -145,19 +150,23 @@ export async function listarVendasParaExportacao(periodo: Periodo): Promise<Vend
   await assertIsAdmin();
   const supabase = await createClient();
 
-  const [{ data: vendas }, { data: perfis }] = await Promise.all([
-    supabase
-      .from("vendas")
-      .select("id, criado_em, vendedor_id, status, forma_pagamento, valor_total, desconto, itens_venda(quantidade)")
-      .gte("criado_em", inicioDoPeriodo(periodo))
-      .lte("criado_em", fimDoPeriodo(periodo))
-      .order("criado_em"),
-    supabase.from("profiles").select("id, nome_completo"),
-  ]);
+  const [{ data: vendas, error: errorVendas }, { data: perfis, error: errorPerfis }] =
+    await Promise.all([
+      supabase
+        .from("vendas")
+        .select("id, criado_em, vendedor_id, status, forma_pagamento, valor_total, desconto, itens_venda(quantidade)")
+        .gte("criado_em", inicioDoPeriodo(periodo))
+        .lte("criado_em", fimDoPeriodo(periodo))
+        .order("criado_em"),
+      supabase.from("profiles").select("id, nome_completo"),
+    ]);
+  if (errorVendas || errorPerfis) {
+    throw new Error("Não foi possível carregar as vendas para exportação.");
+  }
 
-  const nomes = new Map((perfis ?? []).map((p) => [p.id, p.nome_completo]));
+  const nomes = new Map(perfis.map((p) => [p.id, p.nome_completo]));
 
-  return (vendas ?? []).map((v) => ({
+  return vendas.map((v) => ({
     id: v.id,
     criadoEm: v.criado_em,
     vendedorNome: nomes.get(v.vendedor_id) ?? "—",
@@ -175,20 +184,20 @@ export async function obterResumoPeriodo(periodo: Periodo): Promise<ResumoPeriod
   await assertIsAdmin();
   const supabase = await createClient();
 
-  const { data: vendas } = await supabase
+  const { data: vendas, error } = await supabase
     .from("vendas")
     .select("valor_total, itens_venda(quantidade)")
     .eq("status", "concluida")
     .gte("criado_em", inicioDoPeriodo(periodo))
     .lte("criado_em", fimDoPeriodo(periodo));
+  if (error) throw new Error("Não foi possível carregar o resumo do período.");
 
-  const faturamento =
-    Math.round((vendas ?? []).reduce((acc, v) => acc + v.valor_total, 0) * 100) / 100;
-  const pecas = (vendas ?? []).reduce(
+  const faturamento = Math.round(vendas.reduce((acc, v) => acc + v.valor_total, 0) * 100) / 100;
+  const pecas = vendas.reduce(
     (acc, v) => acc + (v.itens_venda ?? []).reduce((a, i) => a + i.quantidade, 0),
     0,
   );
-  const totalVendas = vendas?.length ?? 0;
+  const totalVendas = vendas.length;
 
   return {
     faturamento,

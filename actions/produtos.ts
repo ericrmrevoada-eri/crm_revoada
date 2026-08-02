@@ -30,19 +30,26 @@ export async function listarProdutos(): Promise<Produto[]> {
   // e esta função já está atrás de assertIsAdmin().
   const supabase = createAdminClient();
 
-  const [{ data: produtos }, { data: categorias }, { data: fornecedores }, { data: variacoes }] =
-    await Promise.all([
-      supabase.from("produtos").select("*").order("nome"),
-      supabase.from("categorias").select("id, nome"),
-      supabase.from("fornecedores").select("id, nome"),
-      supabase.from("variacoes_produto").select("produto_id, quantidade_estoque, estoque_minimo"),
-    ]);
+  const [
+    { data: produtos, error: errorProdutos },
+    { data: categorias, error: errorCategorias },
+    { data: fornecedores, error: errorFornecedores },
+    { data: variacoes, error: errorVariacoes },
+  ] = await Promise.all([
+    supabase.from("produtos").select("*").order("nome"),
+    supabase.from("categorias").select("id, nome"),
+    supabase.from("fornecedores").select("id, nome"),
+    supabase.from("variacoes_produto").select("produto_id, quantidade_estoque, estoque_minimo"),
+  ]);
+  if (errorProdutos || errorCategorias || errorFornecedores || errorVariacoes) {
+    throw new Error("Não foi possível carregar os produtos.");
+  }
 
-  const categoriaMap = new Map((categorias ?? []).map((c) => [c.id, c.nome]));
-  const fornecedorMap = new Map((fornecedores ?? []).map((f) => [f.id, f.nome]));
+  const categoriaMap = new Map(categorias.map((c) => [c.id, c.nome]));
+  const fornecedorMap = new Map(fornecedores.map((f) => [f.id, f.nome]));
 
-  return (produtos ?? []).map((p) => {
-    const vs = (variacoes ?? []).filter((v) => v.produto_id === p.id);
+  return produtos.map((p) => {
+    const vs = variacoes.filter((v) => v.produto_id === p.id);
     return {
       id: p.id,
       nome: p.nome,

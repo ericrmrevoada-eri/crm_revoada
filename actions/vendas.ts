@@ -38,21 +38,25 @@ export async function listarCatalogoPdv(): Promise<ItemCatalogo[]> {
   await obterUsuarioAtual();
   const supabase = await createClient();
 
-  const [{ data: variacoes }, { data: categorias }] = await Promise.all([
-    supabase
-      .from("variacoes_produto")
-      .select(
-        "id, tamanho, cor, quantidade_estoque, foto_url, produtos!inner(id, nome, marca, foto_url, preco_venda, ativo, categoria_id)",
-      )
-      .eq("produtos.ativo", true)
-      .order("nome", { referencedTable: "produtos" })
-      .order("tamanho"),
-    supabase.from("categorias").select("id, nome"),
-  ]);
+  const [{ data: variacoes, error: errorVariacoes }, { data: categorias, error: errorCategorias }] =
+    await Promise.all([
+      supabase
+        .from("variacoes_produto")
+        .select(
+          "id, tamanho, cor, quantidade_estoque, foto_url, produtos!inner(id, nome, marca, foto_url, preco_venda, ativo, categoria_id)",
+        )
+        .eq("produtos.ativo", true)
+        .order("nome", { referencedTable: "produtos" })
+        .order("tamanho"),
+      supabase.from("categorias").select("id, nome"),
+    ]);
+  if (errorVariacoes || errorCategorias) {
+    throw new Error("Não foi possível carregar o catálogo.");
+  }
 
-  const nomeCategoria = new Map((categorias ?? []).map((c) => [c.id, c.nome]));
+  const nomeCategoria = new Map(categorias.map((c) => [c.id, c.nome]));
 
-  return (variacoes ?? []).map((v) => ({
+  return variacoes.map((v) => ({
     variacao_id: v.id,
     produto_id: v.produtos.id,
     produto_nome: v.produtos.nome,
@@ -153,23 +157,26 @@ async function montarVendasResumidas(
 
   if (apenasVendedorId) query = query.eq("vendedor_id", apenasVendedorId);
 
-  const { data: vendas } = await query;
-  if (!vendas || vendas.length === 0) return [];
+  const { data: vendas, error } = await query;
+  if (error) throw new Error("Não foi possível carregar as vendas.");
+  if (vendas.length === 0) return [];
 
-  const [{ data: itens }, { data: perfis }] = await Promise.all([
-    supabase
-      .from("itens_venda")
-      .select("venda_id, quantidade")
-      .in(
-        "venda_id",
-        vendas.map((v) => v.id),
-      ),
-    supabase.from("profiles").select("id, nome_completo"),
-  ]);
+  const [{ data: itens, error: errorItens }, { data: perfis, error: errorPerfis }] =
+    await Promise.all([
+      supabase
+        .from("itens_venda")
+        .select("venda_id, quantidade")
+        .in(
+          "venda_id",
+          vendas.map((v) => v.id),
+        ),
+      supabase.from("profiles").select("id, nome_completo"),
+    ]);
+  if (errorItens || errorPerfis) throw new Error("Não foi possível carregar as vendas.");
 
-  const nomes = new Map((perfis ?? []).map((p) => [p.id, p.nome_completo]));
+  const nomes = new Map(perfis.map((p) => [p.id, p.nome_completo]));
   const pecas = new Map<string, number>();
-  for (const item of itens ?? []) {
+  for (const item of itens) {
     pecas.set(item.venda_id, (pecas.get(item.venda_id) ?? 0) + item.quantidade);
   }
 

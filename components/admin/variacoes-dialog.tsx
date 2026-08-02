@@ -264,7 +264,7 @@ export function VariacoesDialog({
 
         <form
           onSubmit={handleSubmit(onSubmitNovaVariacao)}
-          className="grid grid-cols-2 gap-3 rounded-lg border border-dashed border-border p-3 sm:grid-cols-6"
+          className="grid grid-cols-2 gap-3 rounded-lg border border-dashed border-border p-3 sm:grid-cols-3 lg:grid-cols-6"
           noValidate
         >
           <div className="space-y-1">

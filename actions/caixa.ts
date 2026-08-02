@@ -198,14 +198,16 @@ export async function listarCaixas(): Promise<Caixa[]> {
   await assertIsAdmin();
   const supabase = await createClient();
 
-  const [{ data: caixas }, { data: perfis }] = await Promise.all([
-    supabase.from("caixas").select("*").order("data_abertura", { ascending: false }),
-    supabase.from("profiles").select("id, nome_completo"),
-  ]);
+  const [{ data: caixas, error: errorCaixas }, { data: perfis, error: errorPerfis }] =
+    await Promise.all([
+      supabase.from("caixas").select("*").order("data_abertura", { ascending: false }),
+      supabase.from("profiles").select("id, nome_completo"),
+    ]);
+  if (errorCaixas || errorPerfis) throw new Error("Não foi possível carregar os caixas.");
 
-  const nomes = new Map((perfis ?? []).map((p) => [p.id, p.nome_completo]));
+  const nomes = new Map(perfis.map((p) => [p.id, p.nome_completo]));
 
-  return (caixas ?? []).map((c) => ({
+  return caixas.map((c) => ({
     ...c,
     vendedor_nome: nomes.get(c.vendedor_id) ?? null,
   }));

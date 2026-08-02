@@ -2,10 +2,21 @@ import { NextResponse, type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 
 const PUBLIC_ROUTES = ["/login", "/esqueci-senha", "/redefinir-senha", "/auth/confirm"];
+// Só estas duas fazem sentido apenas para quem NÃO está logado: redirecionam
+// para a área do usuário se ele já estiver autenticado. /redefinir-senha e
+// /auth/confirm são diferentes — alcançá-las já implica uma recuperação de
+// senha ou confirmação de e-mail em andamento (o link de recuperação
+// autentica a sessão antes de chegar em /redefinir-senha), então nunca devem
+// desviar o usuário de volta pra home, senão a troca de senha nunca completa.
+const AUTH_ENTRY_ROUTES = ["/login", "/esqueci-senha"];
 const ADMIN_ROUTES = ["/dashboard", "/vendedores", "/estoque", "/financeiro"];
 
 function isPublicRoute(pathname: string) {
   return PUBLIC_ROUTES.some((route) => pathname.startsWith(route));
+}
+
+function isAuthEntryRoute(pathname: string) {
+  return AUTH_ENTRY_ROUTES.some((route) => pathname.startsWith(route));
 }
 
 function isAdminRoute(pathname: string) {
@@ -39,8 +50,8 @@ export async function proxy(request: NextRequest) {
 
   const home = profile?.papel === "admin" ? "/dashboard" : "/pdv";
 
-  // Autenticado tentando acessar login/recuperação de senha -> manda pra área dele.
-  if (isPublicRoute(pathname)) {
+  // Autenticado tentando acessar login/esqueci-senha -> manda pra área dele.
+  if (isAuthEntryRoute(pathname)) {
     const url = request.nextUrl.clone();
     url.pathname = home;
     return NextResponse.redirect(url);

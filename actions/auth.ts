@@ -1,6 +1,5 @@
 "use server";
 
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -12,11 +11,12 @@ import {
   type RedefinirSenhaInput,
 } from "@/lib/validations/auth";
 
-async function getOrigin() {
-  const h = await headers();
-  const host = h.get("x-forwarded-host") ?? h.get("host");
-  const protocol = h.get("x-forwarded-proto") ?? "http";
-  return `${protocol}://${host}`;
+// Nunca deriva de x-forwarded-host/host: são cabeçalhos que quem faz a
+// requisição controla. Um valor forjado aqui faria o e-mail de recuperação
+// (enviado pelo próprio Supabase, de domínio legítimo) apontar pro domínio
+// de um atacante.
+function getOrigin() {
+  return process.env.NEXT_PUBLIC_SITE_URL!;
 }
 
 export async function login(input: LoginInput): Promise<{ error?: string }> {
@@ -61,10 +61,9 @@ export async function esqueciSenha(
   }
 
   const supabase = await createClient();
-  const origin = await getOrigin();
 
   const { error } = await supabase.auth.resetPasswordForEmail(parsed.data.email, {
-    redirectTo: `${origin}/auth/confirm?next=/redefinir-senha`,
+    redirectTo: `${getOrigin()}/auth/confirm?next=/redefinir-senha`,
   });
 
   if (error) {

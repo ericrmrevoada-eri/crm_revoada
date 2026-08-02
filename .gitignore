@@ -41,3 +41,7 @@ supabase/.temp/
 # claude code — settings.local.json é pessoal/por máquina (histórico de
 # permissões), nunca deve ir pro repositório compartilhado.
 .claude/settings.local.json
+
+# handoff de trabalho entre sessões — pode conter achados de segurança ainda
+# não corrigidos; nunca deve ir pro repositório.
+HANDOFF_SEGURANCA.md

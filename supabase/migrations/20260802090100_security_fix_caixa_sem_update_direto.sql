@@ -1,0 +1,13 @@
+-- Correção de segurança (achado #2 do HANDOFF_SEGURANCA.md).
+--
+-- "caixas_vendedor_update_own" permitia PATCH direto em qualquer coluna de
+-- caixas (status, valor_fechamento_calculado, valor_fechamento_informado)
+-- desde que vendedor_id = auth.uid() — um vendedor podia forjar o próprio
+-- fechamento "sem divergência" via REST, contornando fechar_caixa() por
+-- completo (que calcula o valor certo e grava em log_auditoria).
+--
+-- Confirmado que o app nunca faz UPDATE direto em `caixas` (abertura é
+-- INSERT direto via caixas_vendedor_insert_own, que continua liberado;
+-- fechamento é sempre via fechar_caixa(), security definer) — esta policy
+-- de UPDATE não tem nenhum uso legítimo, só superfície de ataque.
+drop policy "caixas_vendedor_update_own" on public.caixas;

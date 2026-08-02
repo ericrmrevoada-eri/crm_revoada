@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { assertIsAdmin } from "@/lib/auth/assert-admin";
 import { uploadFotoProduto } from "@/lib/supabase/storage";
 import { produtoSchema, paraNumeroDecimal, type ProdutoInput } from "@/lib/validations/estoque";
@@ -25,7 +26,9 @@ export type Produto = {
 
 export async function listarProdutos(): Promise<Produto[]> {
   await assertIsAdmin();
-  const supabase = await createClient();
+  // service_role: preco_custo não é liberado para a sessão normal (authenticated),
+  // e esta função já está atrás de assertIsAdmin().
+  const supabase = createAdminClient();
 
   const [{ data: produtos }, { data: categorias }, { data: fornecedores }, { data: variacoes }] =
     await Promise.all([

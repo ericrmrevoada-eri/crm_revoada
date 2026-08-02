@@ -91,6 +91,22 @@ export async function alternarAtivoVendedor(
     return { error: "Não foi possível atualizar o vendedor" };
   }
 
+  // Desativar só em profiles não bane a conta: o access token já emitido segue
+  // válido até expirar sozinho, e o refresh token continuaria renovando a
+  // sessão indefinidamente. ban_duration faz o GoTrue recusar login E recusar
+  // o próximo refresh — a sessão morre no máximo em `expiresIn` (a policy de
+  // RLS via private.is_staff_ativo()/CONTA_INATIVA já barra as ações
+  // sensíveis mesmo antes disso, mas o acesso ao app como um todo só some
+  // quando o token para de renovar).
+  //
+  // Não existe, na Admin API do GoTrue, um "signOut(userId)" que derrube na
+  // hora um access token já emitido sem o próprio token em mãos — só dá pra
+  // impedir login/refresh futuros.
+  const admin = createAdminClient();
+  await admin.auth.admin.updateUserById(id, {
+    ban_duration: ativo ? "none" : "876000h",
+  });
+
   revalidatePath("/vendedores");
   return {};
 }

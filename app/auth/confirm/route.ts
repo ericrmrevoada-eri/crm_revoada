@@ -9,7 +9,11 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const token_hash = searchParams.get("token_hash");
   const type = searchParams.get("type") as EmailOtpType | null;
-  const next = searchParams.get("next") ?? "/";
+  // Só aceita caminho relativo (uma barra, não duas): "next" vem da query
+  // string de um link de e-mail, então "?next=https://site-malicioso.com" não
+  // pode virar um redirect pra fora do domínio depois do login.
+  const rawNext = searchParams.get("next") ?? "/";
+  const next = /^\/(?!\/)/.test(rawNext) ? rawNext : "/";
 
   if (token_hash && type) {
     const supabase = await createClient();

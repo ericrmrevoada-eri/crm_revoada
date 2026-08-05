@@ -1,7 +1,9 @@
 "use server";
 
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { RECOVERY_TICKET_COOKIE } from "@/lib/auth/recovery-ticket";
 import {
   esqueciSenhaSchema,
   loginSchema,
@@ -81,6 +83,17 @@ export async function redefinirSenha(
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos" };
   }
 
+  const cookieStore = await cookies();
+  // Sem o marcador gravado por /auth/confirm, esta chamada não veio de um
+  // link de recuperação válido — pode ser uma sessão comum de quem só
+  // navegou até aqui, ou o marcador expirou/já foi consumido. Recusa em vez
+  // de aceitar qualquer sessão autenticada, que era a falha original (F4).
+  if (!cookieStore.get(RECOVERY_TICKET_COOKIE)) {
+    return {
+      error: "Sessão de redefinição inválida ou expirada. Solicite um novo link.",
+    };
+  }
+
   const supabase = await createClient();
   const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
 
@@ -88,5 +101,8 @@ export async function redefinirSenha(
     return { error: "Não foi possível redefinir a senha. Solicite um novo link." };
   }
 
+  // Uso único: mesmo com a senha já trocada, o ticket não serve para nada de
+  // novo, então cai fora daqui em diante.
+  cookieStore.delete(RECOVERY_TICKET_COOKIE);
   redirect("/");
 }

@@ -1,7 +1,9 @@
 import type { EmailOtpType } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
 import type { NextRequest } from "next/server";
+import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { RECOVERY_TICKET_COOKIE, RECOVERY_TICKET_MAX_AGE } from "@/lib/auth/recovery-ticket";
 
 // Resolve o valor recebido contra a origem da requisição e devolve apenas o
 // caminho, se ele provar ser interno. Qualquer outro caso cai em "/".
@@ -45,6 +47,20 @@ export async function GET(request: NextRequest) {
     const supabase = await createClient();
     const { error } = await supabase.auth.verifyOtp({ type, token_hash });
     if (!error) {
+      if (type === "recovery") {
+        // Prova de que esta sessão chegou por um link de recuperação, não por
+        // login comum: sem isto, qualquer sessão autenticada alcançava
+        // /redefinir-senha e trocava a senha sem informar a atual (achado F4).
+        // Uso único e de vida curta — só cobre o tempo de digitar a senha nova.
+        const cookieStore = await cookies();
+        cookieStore.set(RECOVERY_TICKET_COOKIE, crypto.randomUUID(), {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "lax",
+          path: "/",
+          maxAge: RECOVERY_TICKET_MAX_AGE,
+        });
+      }
       redirect(next);
     }
   }

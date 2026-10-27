@@ -4,7 +4,11 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { redefinirSenha } from "@/actions/auth";
-import { redefinirSenhaSchema, type RedefinirSenhaInput } from "@/lib/validations/auth";
+import {
+  DICA_SENHA,
+  redefinirSenhaSchema,
+  type RedefinirSenhaInput,
+} from "@/lib/validations/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -36,8 +40,10 @@ export function ResetPasswordForm() {
           className="h-12 text-base"
           {...register("password")}
         />
-        {errors.password && (
+        {errors.password ? (
           <p className="text-sm text-destructive">{errors.password.message}</p>
+        ) : (
+          <p className="text-xs text-muted-foreground">{DICA_SENHA}</p>
         )}
       </div>
       <div className="space-y-2">

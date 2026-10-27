@@ -5,7 +5,11 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { criarVendedor } from "@/actions/vendedores";
-import { novoVendedorSchema, type NovoVendedorInput } from "@/lib/validations/auth";
+import {
+  DICA_SENHA,
+  novoVendedorSchema,
+  type NovoVendedorInput,
+} from "@/lib/validations/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -89,8 +93,10 @@ export function VendedorForm() {
           <div className="space-y-2">
             <Label htmlFor="password">Senha temporária</Label>
             <Input id="password" type="password" {...register("password")} />
-            {errors.password && (
+            {errors.password ? (
               <p className="text-sm text-destructive">{errors.password.message}</p>
+            ) : (
+              <p className="text-xs text-muted-foreground">{DICA_SENHA}</p>
             )}
           </div>
           {serverError && <p className="text-sm text-destructive">{serverError}</p>}

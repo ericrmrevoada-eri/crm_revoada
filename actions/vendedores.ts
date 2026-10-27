@@ -4,7 +4,11 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { assertIsAdmin } from "@/lib/auth/assert-admin";
-import { novoVendedorSchema, type NovoVendedorInput } from "@/lib/validations/auth";
+import {
+  DICA_SENHA,
+  novoVendedorSchema,
+  type NovoVendedorInput,
+} from "@/lib/validations/auth";
 
 export type Vendedor = {
   id: string;
@@ -50,7 +54,17 @@ export async function criarVendedor(
   });
 
   if (error || !data.user) {
+    // Registra o motivo real (aparece em Vercel > Logs): antes tudo virava a
+    // mesma mensagem genérica e a causa só era achada nos logs do Supabase.
+    console.error("criarVendedor: falha ao criar usuário", {
+      code: error?.code,
+      status: error?.status,
+      message: error?.message,
+    });
     const jaExiste = error?.message.toLowerCase().includes("already");
+    if (error?.code === "weak_password") {
+      return { error: `Senha fora da política de segurança. ${DICA_SENHA}` };
+    }
     return {
       error: jaExiste
         ? "Já existe um usuário cadastrado com esse e-mail"
@@ -66,6 +80,7 @@ export async function criarVendedor(
   });
 
   if (profileError) {
+    console.error("criarVendedor: falha ao salvar perfil", profileError);
     // Reverte o usuário de auth criado já que o perfil não pôde ser salvo.
     await admin.auth.admin.deleteUser(data.user.id);
     return { error: "Não foi possível salvar os dados do vendedor" };

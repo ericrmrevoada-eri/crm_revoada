@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { RECOVERY_TICKET_COOKIE } from "@/lib/auth/recovery-ticket";
 import {
+  DICA_SENHA,
   esqueciSenhaSchema,
   loginSchema,
   redefinirSenhaSchema,
@@ -98,6 +99,14 @@ export async function redefinirSenha(
   const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
 
   if (error) {
+    console.error("redefinirSenha: falha em updateUser", {
+      code: error.code,
+      status: error.status,
+      message: error.message,
+    });
+    if (error.code === "weak_password") {
+      return { error: `Senha fora da política de segurança. ${DICA_SENHA}` };
+    }
     return { error: "Não foi possível redefinir a senha. Solicite um novo link." };
   }
 
